@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Articles List</title>
+</head>
+<body>
+<h1>Articles List</h1>
+<ul>
+    <% articles.forEach(function(article) { %>
+        <li><%= article.title %> - <%= article.author %></li>
+    <% }); %>
+</ul>
+</body>
+</html>
