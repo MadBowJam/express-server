@@ -4,8 +4,18 @@ html(lang="en")
         meta(charset="UTF-8")
         meta(name="viewport", content="width=device-width, initial-scale=1.0")
         title Users List
+        link(rel='icon', href='/favicon.ico')
+        if theme === 'dark'
+          - console.log(theme)
+            link(rel='stylesheet', href='/styles/dark-theme.css')
+        else
+          - console.log(theme)
+            link(rel='stylesheet', href='/styles/light-theme.css')
     body
         h1 Users List
         ul
           each user in users
               li #{user.name} - #{user.email}
+        //- Додаємо кнопки для вибору теми
+        a(href="/set-theme/light") Light Theme
+        a(href="/set-theme/dark") Dark Theme

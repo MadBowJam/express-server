@@ -4,11 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Article Details</title>
+    <link rel="icon" href="/favicon.ico">
+    <% if (theme === 'dark') { %>
+        <link rel="stylesheet" href="/styles/dark-theme.css">
+    <% } else { %>
+        <link rel="stylesheet" href="/styles/light-theme.css">
+    <% } %>
 </head>
 <body>
 <h1>Article Details</h1>
 <p>Title: <%= article.title %></p>
 <p>Author: <%= article.author %></p>
 <p>Content: <%= article.content %></p>
+<!-- Додаємо кнопки для вибору теми -->
+<a href="/set-theme/light">Light Theme</a>
+<a href="/set-theme/dark">Dark Theme</a>
 </body>
 </html>

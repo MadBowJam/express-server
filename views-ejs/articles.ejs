@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Articles List</title>
+    <link rel="icon" href="/favicon.ico">
+    <% if (theme === 'dark') { %>
+        <link rel="stylesheet" href="/styles/dark-theme.css">
+    <% } else { %>
+        <link rel="stylesheet" href="/styles/light-theme.css">
+    <% } %>
 </head>
 <body>
 <h1>Articles List</h1>
@@ -11,6 +17,9 @@
     <% articles.forEach(function(article) { %>
         <li><%= article.title %> - <%= article.author %></li>
     <% }); %>
+    <!-- Додаємо кнопки для вибору теми -->
+    <a href="/set-theme/light">Light Theme</a>
+    <a href="/set-theme/dark">Dark Theme</a>
 </ul>
 </body>
 </html>
