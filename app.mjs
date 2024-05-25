@@ -163,6 +163,29 @@ app.get('/protected', authenticateJWT, (req, res) => {
     res.send('This is a protected route.');
 });
 
+// Профіль користувача
+app.get('/profile', authenticateJWT, (req, res) => {
+    const { username } = req.user;
+    fs.readFile(usersFilePath, (err, data) => {
+        if (err) throw err;
+        
+        let users = [];
+        try {
+            users = JSON.parse(data);
+            if (!Array.isArray(users)) throw new Error();
+        } catch {
+            users = [];
+        }
+        
+        const user = users.find(u => u.username === username);
+        if (user) {
+            res.json({ username: user.username });
+        } else {
+            res.status(404).send('User not found.');
+        }
+    });
+});
+
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });
