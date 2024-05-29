@@ -3,9 +3,11 @@ import { fileURLToPath } from 'url';
 import path, { dirname } from 'path';
 import cookieParser from 'cookie-parser';
 import favicon from 'serve-favicon';
-import jwt from 'jsonwebtoken';
 import fs from 'fs';
+import passport from 'passport';
+import { Strategy as LocalStrategy } from 'passport-local';
 import bcrypt from 'bcryptjs';
+import session from 'express-session';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -15,6 +17,7 @@ const usersFilePath = path.join(usersFolder, 'user.json');
 const app = express();
 const PORT = 3000;
 const secretKey = 'your_secret_key'; // Використовуйте реальний секретний ключ
+const sessionSecret = 'your_session_secret'; // Використовуйте реальний секретний ключ для сесій
 
 // Перевірка чи існує тека users, якщо ні - створюємо
 if (!fs.existsSync(usersFolder)) {
@@ -27,6 +30,75 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Налаштування сесій
+app.use(session({
+    secret: sessionSecret,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production', // Використовуйте secure cookies у виробничому середовищі
+        maxAge: 1000 * 60 * 60 * 24 // 1 день
+    }
+}));
+
+// Passport.js налаштування
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.use(new LocalStrategy({
+    usernameField: 'email',
+    passwordField: 'password'
+}, (email, password, done) => {
+    fs.readFile(usersFilePath, (err, data) => {
+        if (err) return done(err);
+        
+        let users = [];
+        try {
+            users = JSON.parse(data);
+            if (!Array.isArray(users)) throw new Error();
+        } catch {
+            return done(null, false, { message: 'User not found.' });
+        }
+        
+        const user = users.find(u => u.email === email);
+        if (!user) {
+            return done(null, false, { message: 'Incorrect email.' });
+        }
+        
+        if (!bcrypt.compareSync(password, user.password)) {
+            return done(null, false, { message: 'Incorrect password.' });
+        }
+        
+        return done(null, user);
+    });
+}));
+
+passport.serializeUser((user, done) => {
+    done(null, user.email);
+});
+
+passport.deserializeUser((email, done) => {
+    fs.readFile(usersFilePath, (err, data) => {
+        if (err) return done(err);
+        
+        let users = [];
+        try {
+            users = JSON.parse(data);
+            if (!Array.isArray(users)) throw new Error();
+        } catch {
+            return done(null, false);
+        }
+        
+        const user = users.find(u => u.email === email);
+        if (user) {
+            done(null, user);
+        } else {
+            done(null, false);
+        }
+    });
+});
 
 // Маршрут для збереження улюбленої теми
 app.get('/set-theme/:theme', (req, res) => {
@@ -74,8 +146,8 @@ app.get('/register', (req, res) => {
 
 // Реєстрація
 app.post('/register', (req, res) => {
-    const { username, password } = req.body;
-    const newUser = { username, password: bcrypt.hashSync(password, 10) };
+    const { email, password } = req.body;
+    const newUser = { email, password: bcrypt.hashSync(password, 10) };
     
     fs.readFile(usersFilePath, (err, data) => {
         if (err && err.code !== 'ENOENT') throw err;
@@ -90,8 +162,8 @@ app.post('/register', (req, res) => {
             }
         }
         
-        // Перевірка, чи існує користувач з таким username
-        const userExists = users.some(user => user.username === username);
+        // Перевірка, чи існує користувач з таким email
+        const userExists = users.some(user => user.email === email);
         if (userExists) {
             return res.status(400).send('User already exists.');
         }
@@ -102,10 +174,6 @@ app.post('/register', (req, res) => {
         // Запис оновленого списку користувачів назад у файл
         fs.writeFile(usersFilePath, JSON.stringify(users), (err) => {
             if (err) throw err;
-            
-            // Створення JWT та збереження у cookies
-            const token = jwt.sign({ username }, secretKey, { expiresIn: '1h' });
-            res.cookie('token', token, { httpOnly: true });
             res.status(201).send('User registered successfully.');
         });
     });
@@ -116,74 +184,48 @@ app.get('/login', (req, res) => {
     res.render(path.join(__dirname, 'views-pug', 'login.pug'));
 });
 
-app.post('/login', (req, res) => {
-    const { username, password } = req.body;
-    
-    fs.readFile(usersFilePath, (err, data) => {
-        if (err) throw err;
-        
-        let users = [];
-        try {
-            users = JSON.parse(data);
-            if (!Array.isArray(users)) throw new Error();
-        } catch {
-            users = [];
+app.post('/login', passport.authenticate('local', {
+    successRedirect: '/profile',
+    failureRedirect: '/login'
+}));
+
+// Вихід
+app.post('/logout', (req, res, next) => {
+    req.logout((err) => {
+        if (err) {
+            return next(err);
         }
-        
-        // Перевірка користувача
-        const user = users.find(u => u.username === username);
-        if (user && bcrypt.compareSync(password, user.password)) {
-            const token = jwt.sign({ username }, secretKey, { expiresIn: '1h' });
-            res.cookie('token', token, { httpOnly: true });
-            res.send('Login successful.');
-        } else {
-            res.status(401).send('Invalid username or password.');
-        }
+        req.session.destroy((err) => {
+            if (err) {
+                return next(err);
+            }
+            res.clearCookie('connect.sid');
+            res.redirect('/login');
+        });
     });
 });
 
-// Мідлвар для перевірки JWT
-const authenticateJWT = (req, res, next) => {
-    const token = req.cookies.token;
-    if (token) {
-        jwt.verify(token, secretKey, (err, user) => {
-            if (err) {
-                return res.sendStatus(403);
-            }
-            req.user = user;
-            next();
-        });
-    } else {
-        res.sendStatus(401);
+// Мідлвар для перевірки автентифікації
+const isAuthenticated = (req, res, next) => {
+    if (req.isAuthenticated()) {
+        return next();
     }
+    res.redirect('/login');
 };
 
 // Захищений маршрут
-app.get('/protected', authenticateJWT, (req, res) => {
+app.get('/protected', isAuthenticated, (req, res) => {
     res.send('This is a protected route.');
 });
 
 // Профіль користувача
-app.get('/profile', authenticateJWT, (req, res) => {
-    const { username } = req.user;
-    fs.readFile(usersFilePath, (err, data) => {
-        if (err) throw err;
-        
-        let users = [];
-        try {
-            users = JSON.parse(data);
-            if (!Array.isArray(users)) throw new Error();
-        } catch {
-            users = [];
-        }
-        
-        const user = users.find(u => u.username === username);
-        if (user) {
-            res.json({ username: user.username });
-        } else {
-            res.status(404).send('User not found.');
-        }
-    });
+app.get('/profile', isAuthenticated, (req, res) => {
+    res.send(`
+        <h1>Welcome to your profile, ${req.user.email}</h1>
+        <form action="/logout" method="POST">
+            <button type="submit">Logout</button>
+        </form>
+    `);
 });
 
 app.listen(PORT, () => {
