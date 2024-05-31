@@ -6,6 +6,8 @@ html(lang="en")
         title Login
     body
         h1 Login
+        if message
+            p.message= message
         form(action="/login", method="POST")
             label(for="email") Email:
             input(type="email", id="email", name="email", required)

@@ -1,3 +1,6 @@
+import dotenv from 'dotenv'; // Додано dotenv для завантаження змінних середовища
+dotenv.config(); // Завантаження змінних середовища
+
 import express from 'express';
 import { fileURLToPath } from 'url';
 import path, { dirname } from 'path';
@@ -8,16 +11,24 @@ import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 import bcrypt from 'bcryptjs';
 import session from 'express-session';
+import connectDB from './config.js'; // Імпорт з'єднання з MongoDB
+import User from './models/User.mjs'; // Імпорт моделі User
+import flash from 'express-flash';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const usersFolder = path.join(__dirname, 'users');
 const usersFilePath = path.join(usersFolder, 'user.json');
 
+
+
 const app = express();
 const PORT = 3000;
 const secretKey = 'your_secret_key'; // Використовуйте реальний секретний ключ
 const sessionSecret = 'your_session_secret'; // Використовуйте реальний секретний ключ для сесій
+
+// Підключення до бази даних
+connectDB();
 
 // Перевірка чи існує тека users, якщо ні - створюємо
 if (!fs.existsSync(usersFolder)) {
@@ -43,6 +54,8 @@ app.use(session({
     }
 }));
 
+app.use(flash());
+
 // Passport.js налаштування
 app.use(passport.initialize());
 app.use(passport.session());
@@ -50,54 +63,35 @@ app.use(passport.session());
 passport.use(new LocalStrategy({
     usernameField: 'email',
     passwordField: 'password'
-}, (email, password, done) => {
-    fs.readFile(usersFilePath, (err, data) => {
-        if (err) return done(err);
-        
-        let users = [];
-        try {
-            users = JSON.parse(data);
-            if (!Array.isArray(users)) throw new Error();
-        } catch {
-            return done(null, false, { message: 'User not found.' });
-        }
-        
-        const user = users.find(u => u.email === email);
+}, async (email, password, done) => {
+    try {
+        const user = await User.findOne({ email });
         if (!user) {
             return done(null, false, { message: 'Incorrect email.' });
         }
         
-        if (!bcrypt.compareSync(password, user.password)) {
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
             return done(null, false, { message: 'Incorrect password.' });
         }
         
         return done(null, user);
-    });
+    } catch (err) {
+        return done(err);
+    }
 }));
 
 passport.serializeUser((user, done) => {
-    done(null, user.email);
+    done(null, user.id);
 });
 
-passport.deserializeUser((email, done) => {
-    fs.readFile(usersFilePath, (err, data) => {
-        if (err) return done(err);
-        
-        let users = [];
-        try {
-            users = JSON.parse(data);
-            if (!Array.isArray(users)) throw new Error();
-        } catch {
-            return done(null, false);
-        }
-        
-        const user = users.find(u => u.email === email);
-        if (user) {
-            done(null, user);
-        } else {
-            done(null, false);
-        }
-    });
+passport.deserializeUser(async (id, done) => {
+    try {
+        const user = await User.findById(id);
+        done(null, user);
+    } catch (err) {
+        done(err);
+    }
 });
 
 // Маршрут для збереження улюбленої теми
@@ -105,6 +99,17 @@ app.get('/set-theme/:theme', (req, res) => {
     const { theme } = req.params;
     res.cookie('theme', theme, { maxAge: 900000, httpOnly: true });
     res.redirect('back');
+});
+
+// Маршрут для отримання списку користувачів з MongoDB
+app.get('/users', async (req, res) => {
+    try {
+        const users = await User.find();
+        res.json(users);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Server Error');
+    }
 });
 
 // Маршрути Pug
@@ -145,48 +150,36 @@ app.get('/register', (req, res) => {
 });
 
 // Реєстрація
-app.post('/register', (req, res) => {
+app.post('/register', async (req, res) => {
     const { email, password } = req.body;
-    const newUser = { email, password: bcrypt.hashSync(password, 10) };
-    
-    fs.readFile(usersFilePath, (err, data) => {
-        if (err && err.code !== 'ENOENT') throw err;
-        
-        let users = [];
-        if (!err) {
-            try {
-                users = JSON.parse(data);
-                if (!Array.isArray(users)) throw new Error();
-            } catch {
-                users = [];
-            }
-        }
-        
-        // Перевірка, чи існує користувач з таким email
-        const userExists = users.some(user => user.email === email);
+    try {
+        const userExists = await User.findOne({ email });
         if (userExists) {
             return res.status(400).send('User already exists.');
         }
         
-        // Додавання нового користувача до списку
-        users.push(newUser);
-        
-        // Запис оновленого списку користувачів назад у файл
-        fs.writeFile(usersFilePath, JSON.stringify(users), (err) => {
-            if (err) throw err;
-            res.status(201).send('User registered successfully.');
+        const newUser = new User({
+            email,
+            password: await bcrypt.hash(password, 10),
         });
-    });
+        
+        await newUser.save();
+        res.status(201).send('User registered successfully.');
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Server Error');
+    }
 });
 
 // Вхід
 app.get('/login', (req, res) => {
-    res.render(path.join(__dirname, 'views-pug', 'login.pug'));
+    res.render(path.join(__dirname, 'views-pug', 'login.pug'), { message: req.flash('error') });
 });
 
 app.post('/login', passport.authenticate('local', {
     successRedirect: '/profile',
-    failureRedirect: '/login'
+    failureRedirect: '/login',
+    failureFlash: true // Включити flash messages у випадку невдалих спроб
 }));
 
 // Вихід
@@ -213,11 +206,6 @@ const isAuthenticated = (req, res, next) => {
     res.redirect('/login');
 };
 
-// Захищений маршрут
-app.get('/protected', isAuthenticated, (req, res) => {
-    res.send('This is a protected route.');
-});
-
 // Профіль користувача
 app.get('/profile', isAuthenticated, (req, res) => {
     res.send(`
@@ -226,6 +214,11 @@ app.get('/profile', isAuthenticated, (req, res) => {
             <button type="submit">Logout</button>
         </form>
     `);
+});
+
+// Захищений маршрут
+app.get('/protected', isAuthenticated, (req, res) => {
+    res.send('This is a protected route');
 });
 
 app.listen(PORT, () => {
