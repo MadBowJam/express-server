@@ -8,7 +8,7 @@ const mongoUri = process.env.MONGODB_URI;
 if (!mongoUri) {
   throw new Error('MONGODB_URI is not defined in the environment variables');
 }
-const client = new MongoClient(mongoUri, { useNewUrlParser: true, useUnifiedTopology: true });
+const client = new MongoClient(mongoUri);
 
 const connectDB = async () => {
   try {
