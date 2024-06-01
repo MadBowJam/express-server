@@ -1,0 +1,46 @@
+{
+  acknowledged: true,
+  insertedId: new ObjectId('665b1bfd08c42adbe0e0acd2')
+}
+Error creating user: MongoServerError: E11000 duplicate key error collection: users.users index: _id_ dup key: { _id: ObjectId('665b1bfd08c42adbe0e0acd2') }
+    at InsertOneOperation.execute (C:\Users\madbo\Documents\GitHub\express-server\node_modules\mongodb\lib\operations\insert.js:51:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async executeOperation (C:\Users\madbo\Documents\GitHub\express-server\node_modules\mongodb\lib\operations\execute_operation.js:136:16)
+    at async Collection.insertOne (C:\Users\madbo\Documents\GitHub\express-server\node_modules\mongodb\lib\collection.js:155:16)
+    at async createUser (file:///C:/Users/madbo/Documents/GitHub/express-server/models/User.js:18:20)
+    at async file:///C:/Users/madbo/Documents/GitHub/express-server/app.mjs:163:25 {
+  errorResponse: {
+    index: 0,
+    code: 11000,
+    errmsg: "E11000 duplicate key error collection: users.users index: _id_ dup key: { _id: ObjectId('665b1bfd08c42adbe0e0acd2') }",
+    keyPattern: { _id: 1 },
+    keyValue: { _id: new ObjectId('665b1bfd08c42adbe0e0acd2') }
+  },
+  index: 0,
+  code: 11000,
+  keyPattern: { _id: 1 },
+  keyValue: { _id: new ObjectId('665b1bfd08c42adbe0e0acd2') },
+  [Symbol(errorLabels)]: Set(0) {}
+}
+Mongo
+
+ServerError: E11000 duplicate key error collection: users.users index: _id_ dup key: { _id: ObjectId('665b1bfd08c42adbe0e0acd2') }
+    at InsertOneOperation.execute (C:\Users\madbo\Documents\GitHub\express-server\node_modules\mongodb\lib\operations\insert.js:51:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async executeOperation (C:\Users\madbo\Documents\GitHub\express-server\node_modules\mongodb\lib\operations\execute_operation.js:136:16)
+    at async Collection.insertOne (C:\Users\madbo\Documents\GitHub\express-server\node_modules\mongodb\lib\collection.js:155:16)
+    at async createUser (file:///C:/Users/madbo/Documents/GitHub/express-server/models/User.js:18:20)
+    at async file:///C:/Users/madbo/Documents/GitHub/express-server/app.mjs:163:25 {
+  errorResponse: {
+    index: 0,
+    code: 11000,
+    errmsg: "E11000 duplicate key error collection: users.users index: _id_ dup key: { _id: ObjectId('665b1bfd08c42adbe0e0acd2') }",
+    keyPattern: { _id: 1 },
+    keyValue: { _id: new ObjectId('665b1bfd08c42adbe0e0acd2') }
+  },
+  index: 0,
+  code: 11000,
+  keyPattern: { _id: 1 },
+  keyValue: { _id: new ObjectId('665b1bfd08c42adbe0e0acd2') },
+  [Symbol(errorLabels)]: Set(0) {}
+}

@@ -1,5 +1,5 @@
-import dotenv from 'dotenv'; // Додано dotenv для завантаження змінних середовища
-dotenv.config(); // Завантаження змінних середовища
+import dotenv from 'dotenv';
+dotenv.config();
 
 import express from 'express';
 import { fileURLToPath } from 'url';
@@ -11,16 +11,14 @@ import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 import bcrypt from 'bcryptjs';
 import session from 'express-session';
-import connectDB from './config.js'; // Імпорт з'єднання з MongoDB
-import User from './models/User.mjs'; // Імпорт моделі User
+import { connectDB, getDB } from './config.js'; // Імпорт з'єднання з MongoDB
+import { findUserByEmail, createUser, findUserById } from './models/User.js'; // Імпорт функцій з файлу User.js
 import flash from 'express-flash';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const usersFolder = path.join(__dirname, 'users');
 const usersFilePath = path.join(usersFolder, 'user.json');
-
-
 
 const app = express();
 const PORT = 3000;
@@ -65,7 +63,7 @@ passport.use(new LocalStrategy({
     passwordField: 'password'
 }, async (email, password, done) => {
     try {
-        const user = await User.findOne({ email });
+        const user = await findUserByEmail(email);
         if (!user) {
             return done(null, false, { message: 'Incorrect email.' });
         }
@@ -82,17 +80,19 @@ passport.use(new LocalStrategy({
 }));
 
 passport.serializeUser((user, done) => {
-    done(null, user.id);
+    done(null, user._id); // Замінено user.id на user._id
 });
 
 passport.deserializeUser(async (id, done) => {
     try {
-        const user = await User.findById(id);
+        const user = await findUserById(id); // Використовуйте знайдення користувача за його id
         done(null, user);
     } catch (err) {
         done(err);
     }
 });
+
+
 
 // Маршрут для збереження улюбленої теми
 app.get('/set-theme/:theme', (req, res) => {
@@ -104,7 +104,8 @@ app.get('/set-theme/:theme', (req, res) => {
 // Маршрут для отримання списку користувачів з MongoDB
 app.get('/users', async (req, res) => {
     try {
-        const users = await User.find();
+        const db = getDB();
+        const users = await db.collection('users').find().toArray();
         res.json(users);
     } catch (err) {
         console.error(err);
@@ -153,17 +154,16 @@ app.get('/register', (req, res) => {
 app.post('/register', async (req, res) => {
     const { email, password } = req.body;
     try {
-        const userExists = await User.findOne({ email });
+        const userExists = await findUserByEmail(email);
         if (userExists) {
             return res.status(400).send('User already exists.');
         }
         
-        const newUser = new User({
+        const newUser = await createUser({
             email,
             password: await bcrypt.hash(password, 10),
         });
         
-        await newUser.save();
         res.status(201).send('User registered successfully.');
     } catch (err) {
         console.error(err);
@@ -177,10 +177,11 @@ app.get('/login', (req, res) => {
 });
 
 app.post('/login', passport.authenticate('local', {
-    successRedirect: '/profile',
-    failureRedirect: '/login',
+    successRedirect: '/profile', // Перенаправлення при успішному вході
+    failureRedirect: '/login', // Перенаправлення при невдачі
     failureFlash: true // Включити flash messages у випадку невдалих спроб
 }));
+
 
 // Вихід
 app.post('/logout', (req, res, next) => {
@@ -200,21 +201,24 @@ app.post('/logout', (req, res, next) => {
 
 // Мідлвар для перевірки автентифікації
 const isAuthenticated = (req, res, next) => {
-    if (req.isAuthenticated()) {
+    if (req.method === 'POST' && !req.isAuthenticated()) {
+        res.redirect('/login');
+    } else {
         return next();
     }
-    res.redirect('/login');
 };
+
 
 // Профіль користувача
 app.get('/profile', isAuthenticated, (req, res) => {
     res.send(`
-        <h1>Welcome to your profile, ${req.user.email}</h1>
+        <h1>Welcome to your profile, ${req.user ? req.user.email : 'Guest'}</h1>
         <form action="/logout" method="POST">
             <button type="submit">Logout</button>
         </form>
     `);
 });
+
 
 // Захищений маршрут
 app.get('/protected', isAuthenticated, (req, res) => {
