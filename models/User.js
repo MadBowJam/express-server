@@ -37,4 +37,98 @@ async function findUserById(id) {
   }
 }
 
-export { findUserByEmail, createUser, findUserById };
+const insertManyUsers = async (userDataArray) => {
+  try {
+    const collection = getUserCollection();
+    const result = await collection.insertMany(userDataArray);
+    return result.insertedIds;
+  } catch (err) {
+    console.error("Error inserting many users:", err);
+    throw err;
+  }
+};
+
+const updateOneUser = async (id, updateData) => {
+  try {
+    const collection = getUserCollection();
+    const result = await collection.updateOne({ _id: new ObjectId(id) }, { $set: updateData });
+    return result.modifiedCount;
+  } catch (err) {
+    console.error("Error updating user:", err);
+    throw err;
+  }
+};
+
+const updateManyUsers = async (updateDataArray) => {
+  try {
+    const collection = getUserCollection();
+    const results = [];
+    
+    for (const updateData of updateDataArray) {
+      const { _id, ...rest } = updateData;
+      const result = await collection.updateOne(
+        { _id: new ObjectId(_id) },
+        { $set: rest }
+      );
+      if (result.matchedCount === 1) {
+        results.push(await collection.findOne({ _id: new ObjectId(_id) }));
+      }
+    }
+    
+    return results;
+  } catch (err) {
+    console.error("Error updating many users:", err);
+    throw err;
+  }
+};
+
+const replaceOneUser = async (id, newData) => {
+  try {
+    const collection = getUserCollection();
+    const result = await collection.replaceOne({ _id: new ObjectId(id) }, newData);
+    return result.modifiedCount;
+  } catch (err) {
+    console.error("Error replacing user:", err);
+    throw err;
+  }
+};
+
+const deleteOneUser = async (id) => {
+  try {
+    const collection = getUserCollection();
+    const result = await collection.deleteOne({ _id: new ObjectId(id) });
+    return result.deletedCount;
+  } catch (err) {
+    console.error("Error deleting user:", err);
+    throw err;
+  }
+};
+
+const deleteManyUsers = async (ids) => {
+  try {
+    const collection = getUserCollection();
+    const objectIds = ids.map(id => new ObjectId(id));
+    const result = await collection.deleteMany({ _id: { $in: objectIds } });
+    
+    if (result.deletedCount > 0) {
+      return { message: `${result.deletedCount} users deleted successfully` };
+    } else {
+      throw new Error("No users found for deletion");
+    }
+  } catch (err) {
+    console.error("Error deleting users:", err);
+    throw err;
+  }
+};
+
+const findUsers = async (filter = {}, projection = {}) => {
+  try {
+    const collection = getUserCollection();
+    return await collection.find(filter).project(projection).toArray();
+  } catch (err) {
+    console.error("Error finding users:", err);
+    throw err;
+  }
+};
+
+export { findUserByEmail, createUser, findUserById, insertManyUsers, updateOneUser, updateManyUsers, replaceOneUser, deleteOneUser, deleteManyUsers, findUsers };

@@ -12,7 +12,7 @@ import { Strategy as LocalStrategy } from 'passport-local';
 import bcrypt from 'bcryptjs';
 import session from 'express-session';
 import { connectDB, getDB } from './config.js'; // Імпорт з'єднання з MongoDB
-import { findUserByEmail, createUser, findUserById } from './models/User.js'; // Імпорт функцій з файлу User.js
+import { findUserByEmail, createUser, findUserById, insertManyUsers, updateOneUser, updateManyUsers, replaceOneUser, deleteOneUser, deleteManyUsers, findUsers } from './models/User.js'; // Імпорт функцій з файлу User.js
 import flash from 'express-flash';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -114,13 +114,13 @@ app.get('/users', async (req, res) => {
 });
 
 // Маршрути Pug
-app.get('/users', (req, res) => {
-    const users = [
-        { name: 'John Doe', email: 'john@example.com' },
-        { name: 'Jane Smith', email: 'jane@example.com' }
-    ];
-    res.render(path.join(__dirname, 'views-pug', 'users.pug'), { users, theme: req.cookies.theme || 'light' });
-});
+// app.get('/users', (req, res) => {
+//     const users = [
+//         { name: 'John Doe', email: 'john@example.com' },
+//         { name: 'Jane Smith', email: 'jane@example.com' }
+//     ];
+//     res.render(path.join(__dirname, 'views-pug', 'users.pug'), { users, theme: req.cookies.theme || 'light' });
+// });
 
 app.get('/users/:userId', (req, res) => {
     const user = { name: 'John Doe', email: 'john@example.com' };
@@ -223,6 +223,133 @@ app.get('/profile', isAuthenticated, (req, res) => {
 // Захищений маршрут
 app.get('/protected', isAuthenticated, (req, res) => {
     res.send('This is a protected route');
+});
+
+// Додавання одного користувача
+app.post('/users', async (req, res) => {
+    try {
+        const userData = req.body;
+        const newUser = await createUser(userData);
+        res.status(201).json(newUser);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Server Error');
+    }
+});
+
+// Додавання багатьох користувачів
+app.post('/users/many', async (req, res) => {
+    try {
+        const userDataArray = req.body;
+        
+        // Перевірка, чи userDataArray є масивом
+        if (!Array.isArray(userDataArray)) {
+            return res.status(400).send('Invalid input, expected an array of user data.');
+        }
+        
+        const insertedIds = await insertManyUsers(userDataArray);
+        res.status(201).json({ insertedIds });
+    } catch (err) {
+        console.error("Error inserting many users:", err);
+        res.status(500).send('Server Error');
+    }
+});
+
+// Оновлення одного користувача
+app.put('/users/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updateData = req.body;
+        const modifiedCount = await updateOneUser(id, updateData);
+        if (modifiedCount > 0) {
+            res.status(200).send('User updated successfully.');
+        } else {
+            res.status(404).send('User not found.');
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Server Error');
+    }
+});
+
+// Оновлення багатьох користувачів
+app.put('/users/', async (req, res) => {
+    const updateDataArray = req.body;
+    
+    if (!Array.isArray(updateDataArray)) {
+        return res.status(400).send('Invalid input, expected an array of user data.');
+    }
+    
+    try {
+        const results = await updateManyUsers(updateDataArray);
+        res.status(200).json(results);
+    } catch (err) {
+        console.error("Error updating many users:", err);
+        res.status(500).send('Server Error');
+    }
+});
+
+// Заміна одного користувача
+app.put('/users/replace/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const newData = req.body;
+        const modifiedCount = await replaceOneUser(id, newData);
+        if (modifiedCount > 0) {
+            res.status(200).send('User replaced successfully.');
+        } else {
+            res.status(404).send('User not found.');
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Server Error');
+    }
+});
+
+// Видалення одного користувача
+app.delete('/users/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const deletedCount = await deleteOneUser(id);
+        if (deletedCount > 0) {
+            res.status(200).send('User deleted successfully.');
+        } else {
+            res.status(404).send('User not found.');
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Server Error');
+    }
+});
+
+// Видалення багатьох користувачів
+app.delete('/users', async (req, res) => {
+    const { ids } = req.body;
+    
+    if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).send('Invalid input, expected an array of user ids.');
+    }
+    
+    try {
+        const result = await deleteManyUsers(ids);
+        res.status(200).json(result);
+    } catch (err) {
+        console.error("Error deleting users:", err);
+        res.status(500).send('Server Error');
+    }
+});
+
+// Пошук користувачів з проекцією
+app.get('/users', async (req, res) => {
+    try {
+        const filter = req.query.filter ? JSON.parse(req.query.filter) : {};
+        const projection = req.query.projection ? JSON.parse(req.query.projection) : {};
+        const users = await findUsers(filter, projection);
+        res.status(200).json(users);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Server Error');
+    }
 });
 
 app.listen(PORT, () => {

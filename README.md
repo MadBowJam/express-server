@@ -1,3 +1,41 @@
+# Для Андрія Фоменко 
+## Всі тести проводились через Postman
+Зпускаємо проєкт через nodem app.mjs
+<br>post /users - додаємо в список користувачів нового тестового користувача
+<br> /users/many - додаємо масив користувачів, наприклад
+<br>`[
+   {
+      "email": "user1@example.com",
+      "password": "password1"
+   },
+   {
+      "email": "user2@example.com",
+      "password": "password2"
+   }
+]`
+<br>put /users/:id - оновлення даних користувача через унікальний айді, наприклад
+<br>`{
+   "email": "updateduser@example.com",
+   "password": "newpassword"
+}`
+<br>put /users - оновлення даних декількох користувачів через унікальний айді, наприклад
+<br>`{
+   {"_id": "665b0a0741e05b3ebcd1da17", "email": "newemail1@example.com", "password": "newpassword1"},
+   {"_id": "665b142b1cff5e085ac47a0d", "email": "newemail2@example.com", "password": "newpassword2"}
+}`
+<br>put /users/replace/:id - заміна даних перного користувача, наприклад
+<br>`{
+   "email": "updatedemail@example.com",
+   "password": "updatedpassword"
+}`
+<br>delete /users/:id - видаляє користувача за унікальний айді
+<br>delete /users - видаляє масив користувачів, наприклад
+<br>`{
+   "ids": ["665b197468e1014a694b296d", "665b19b4e5d5f8fdfd7a6dd2"]
+}`
+<br>get /users - віддає масив всіх користувачів
+
+
 # express-server
 
 Простий сервер, що реалізований за допомогою Node.js та Express.js. Цей сервер надає базовий API для управління користувачами та статтями.
