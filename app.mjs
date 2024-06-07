@@ -12,7 +12,7 @@ import { Strategy as LocalStrategy } from 'passport-local';
 import bcrypt from 'bcryptjs';
 import session from 'express-session';
 import { connectDB, getDB } from './config.js'; // Імпорт з'єднання з MongoDB
-import { findUserByEmail, createUser, findUserById, insertManyUsers, updateOneUser, updateManyUsers, replaceOneUser, deleteOneUser, deleteManyUsers, findUsers } from './models/User.js'; // Імпорт функцій з файлу User.js
+import { findUserByEmail, createUser, findUserById, insertManyUsers, updateOneUser, updateManyUsers, replaceOneUser, deleteOneUser, deleteManyUsers, findUsers, getUsersWithCursor, getUserStatistics  } from './models/User.js'; // Імпорт функцій з файлу User.js
 import flash from 'express-flash';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -339,15 +339,41 @@ app.delete('/users', async (req, res) => {
     }
 });
 
-// Пошук користувачів з проекцією
+// // Пошук користувачів з проекцією
+// app.get('/users', async (req, res) => {
+//     try {
+//         const filter = req.query.filter ? JSON.parse(req.query.filter) : {};
+//         const projection = req.query.projection ? JSON.parse(req.query.projection) : {};
+//         const users = await findUsers(filter, projection);
+//         res.status(200).json(users);
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).send('Server Error');
+//     }
+// });
+
 app.get('/users', async (req, res) => {
     try {
-        const filter = req.query.filter ? JSON.parse(req.query.filter) : {};
-        const projection = req.query.projection ? JSON.parse(req.query.projection) : {};
-        const users = await findUsers(filter, projection);
+        const cursor = await getUsersWithCursor();
+        const users = [];
+        
+        await cursor.forEach(user => {
+            users.push(user);
+        });
+        
         res.status(200).json(users);
     } catch (err) {
-        console.error(err);
+        console.error("Error fetching users with cursor:", err);
+        res.status(500).send('Server Error');
+    }
+});
+
+app.get('/user-stats', async (req, res) => {
+    try {
+        const stats = await getUserStatistics();
+        res.status(200).json(stats);
+    } catch (err) {
+        console.error("Error fetching user statistics:", err);
         res.status(500).send('Server Error');
     }
 });

@@ -131,4 +131,37 @@ const findUsers = async (filter = {}, projection = {}) => {
   }
 };
 
-export { findUserByEmail, createUser, findUserById, insertManyUsers, updateOneUser, updateManyUsers, replaceOneUser, deleteOneUser, deleteManyUsers, findUsers };
+// Функція для використання курсора
+const getUsersWithCursor = async () => {
+  try {
+    const collection = getUserCollection();
+    const cursor = collection.find();
+    return cursor;
+  } catch (err) {
+    console.error("Error getting users with cursor:", err);
+    throw err;
+  }
+};
+
+// Функція для агрегаційного запиту
+const getUserStatistics = async () => {
+  try {
+    const collection = getUserCollection();
+    const pipeline = [
+      {
+        $group: {
+          _id: null,
+          totalUsers: { $sum: 1 },
+          uniqueEmails: { $addToSet: "$email" }
+        }
+      }
+    ];
+    const result = await collection.aggregate(pipeline).toArray();
+    return result[0];
+  } catch (err) {
+    console.error("Error getting user statistics:", err);
+    throw err;
+  }
+};
+
+export { findUserByEmail, createUser, findUserById, insertManyUsers, updateOneUser, updateManyUsers, replaceOneUser, deleteOneUser, deleteManyUsers, findUsers, getUsersWithCursor, getUserStatistics };
