@@ -1,0 +1,6 @@
+{
+  "watch": ["."],
+  "ignore": ["node_modules", "docker-compose.yml"],
+  "ext": "mjs,json",
+  "exec": "node app.mjs"
+}

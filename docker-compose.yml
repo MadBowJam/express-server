@@ -1,0 +1,29 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: app
+    working_dir: ${PWD}
+    volumes:
+      - .:/app
+    command: ["npm", "start"]
+    environment:
+      - MONGODB_URI=mongodb+srv://madbowjam:1wsxm7eMksnNf1Gp@cluster0.yzzi21t.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+    depends_on:
+      - mongo
+    ports:
+      - "3000:3000"
+
+  mongo:
+    image: mongo
+    container_name: mongo
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "27017:27017"
+
+volumes:
+  mongo-data:
