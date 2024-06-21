@@ -1,14 +1,21 @@
-// routes/usersRoutes.mjs
 import express from 'express';
-const usersRoutes = express.Router();
-import { usersController } from '../controllers/usersController.mjs';
-import { basicAuth } from '../middlewares/authMiddleware.mjs';
-import { validateUserInput } from '../middlewares/validateMiddleware.mjs';
+import { findUsers, createUser, updateUser, getUserById, deleteUser  } from '../controllers/usersController.mjs';
 
-usersRoutes.get('/', basicAuth, usersController.getUsers);
-usersRoutes.post('/', validateUserInput, usersController.postUser);
-usersRoutes.get('/:userId', basicAuth, usersController.getUserById);
-usersRoutes.put('/:userId', basicAuth, usersController.putUserById);
-usersRoutes.delete('/:userId', basicAuth, usersController.deleteUserById);
+const router = express.Router();
 
-export { usersRoutes };
+// Route to get all users
+router.get('/users', findUsers);
+
+// Route to create a new user
+router.post('/users', createUser);
+
+// GET a user by ID
+router.get('/users/:id', getUserById);
+
+// Route to update a user by ID
+router.put('/users/:id', updateUser);
+
+// DELETE user by ID
+router.delete('/users/:id', deleteUser);
+
+export default router;
